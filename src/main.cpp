@@ -9,9 +9,11 @@ backward::SignalHandling sh;
 #include "game.h"
 //
 #include "argh.h"
+#include "game_state_manager.h"
 #include "preload.h"
 #include "settings.h"
 #include "sound_systems.h"
+#include "systems/begin_post_processing_shader.h"
 #include "systems/mark_entities_with_shaders.h"
 #include "systems/post_processing_systems.h"
 #include "systems/render_debug_window_info.h"
@@ -20,8 +22,10 @@ backward::SignalHandling sh;
 #include "systems/render_letterbox_bars.h"
 #include "systems/render_sprites_with_shaders.h"
 #include "systems/render_system_helpers.h"
+#include "systems/tag_shader_render.h"
 #include "systems/update_render_texture.h"
 #include "systems/update_sprite_transform.h"
+#include "ui/ui_systems.h"
 #include <afterhours/src/plugins/animation.h>
 
 // TODO add honking
@@ -47,6 +51,7 @@ void game() {
     ui::enforce_singletons<InputAction>(systems);
     input::enforce_singletons(systems);
     texture_manager::enforce_singletons(systems);
+    enforce_ui_singletons(systems);
   }
 
   // external plugins
@@ -67,23 +72,13 @@ void game() {
       }
     });
 
-    // Handle escape key to close game
-    systems.register_update_system([&](float) {
-      auto inpc = input::get_input_collector();
-      const bool escape_pressed =
-          std::ranges::any_of(inpc.inputs_pressed(), [](const auto &a) {
-            return action_matches(a.action, InputAction::MenuBack);
-          });
-      if (escape_pressed) {
-        running = false;
-      }
-    });
     systems.register_update_system(std::make_unique<UpdateSpriteTransform>());
     systems.register_update_system(std::make_unique<UpdateShaderValues>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
     texture_manager::register_update_systems(systems);
 
     register_sound_systems(systems);
+    register_ui_systems(systems);
 
     systems.register_update_system(std::make_unique<UpdateRenderTexture>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
@@ -104,8 +99,11 @@ void game() {
       systems.register_render_system(std::make_unique<EndWorldRender>());
       // pass 2: render mainRT with tag shader into screenRT, then draw UI into
       // screenRT
+      systems.register_render_system(std::make_unique<BeginTagShaderRender>());
       ui::register_render_systems<InputAction>(
           systems, InputAction::ToggleUILayoutDebug);
+      systems.register_render_system(std::make_unique<EndTagShaderRender>());
+      // pass 3: draw to screen with base post-processing shader
       systems.register_render_system(
           std::make_unique<BeginPostProcessingRender>());
       systems.register_render_system(

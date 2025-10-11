@@ -15,6 +15,7 @@
 #include "sound_library.h"
 #include "texture_library.h"
 #include "translation_manager.h"
+#include "ui/ui_systems.h"
 
 using namespace afterhours;
 // for HasTexture
@@ -174,6 +175,7 @@ Preload &Preload::make_singleton() {
         .enable_font(get_font_name(FontID::English), 75.f);
 
     // Navigation stack singleton for consistent UI navigation
+    add_ui_singleton_components(sophie);
   }
   {
     // Audio emitter singleton for centralized sound requests

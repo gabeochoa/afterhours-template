@@ -3,6 +3,7 @@
 
 #include "components/transform.h"
 #include "math_util.h"
+#include "rl.h"
 #include <afterhours/src/ecs.h>
 
 using namespace afterhours;
