@@ -60,7 +60,8 @@ struct GameStateManager {
     return current_state == GameState::Playing;
   }
   [[nodiscard]] bool is_menu_active() const {
-    return current_state == GameState::Menu;
+    return current_state == GameState::Menu ||
+           current_state == GameState::Paused;
   }
   [[nodiscard]] bool is_paused() const {
     return current_state == GameState::Paused;

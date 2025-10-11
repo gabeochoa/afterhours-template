@@ -20,18 +20,58 @@ void to(Screen screen) {
 
 void back() {
   auto &gsm = GameStateManager::get();
-  // If we're on the main screen, exit the game
+
+  // Exit game if on main screen, stack is empty, or game is paused
   if (gsm.active_screen == GameStateManager::Screen::Main ||
-      nav().stack.empty()) {
+      nav().stack.empty() || gsm.is_paused()) {
     running = false;
     return;
   }
+
+  // Navigate to previous screen
   Screen previous = nav().stack.back();
   nav().stack.pop_back();
   gsm.set_next_screen(previous);
 }
 
 } // namespace navigation
+
+static void update_ui_visibility(MenuNavigationStack &nav_stack) {
+  auto &gsm = GameStateManager::get();
+
+  if (gsm.is_game_active()) {
+    nav_stack.ui_visible = false;
+  } else if (gsm.is_menu_active()) {
+    nav_stack.ui_visible = true;
+  }
+}
+
+static void handle_escape_key(MenuNavigationStack &nav_stack) {
+  auto &gsm = GameStateManager::get();
+
+  if (!nav_stack.ui_visible) {
+    // Game is active and UI is hidden - pause the game and show UI
+    gsm.pause_game();
+    navigation::to(GameStateManager::Screen::Main);
+    nav_stack.ui_visible = true;
+    return;
+  }
+
+  // UI is visible - handle menu navigation or unpause
+  if (gsm.is_paused()) {
+    if (gsm.active_screen == GameStateManager::Screen::Main) {
+      // Paused on main menu - allow exit
+      navigation::back();
+    } else {
+      // Paused on other screen - unpause
+      gsm.unpause_game();
+      nav_stack.ui_visible = false;
+    }
+  } else {
+    // Regular menu navigation
+    navigation::back();
+  }
+}
 
 void NavigationSystem::once(float) {
   inpc = input::get_input_collector();
@@ -45,12 +85,8 @@ void NavigationSystem::once(float) {
     }
   }
 
-  // Baseline UI visibility from game state (then allow toggle)
-  if (GameStateManager::get().is_game_active()) {
-    n.ui_visible = false;
-  } else if (GameStateManager::get().is_menu_active()) {
-    n.ui_visible = true;
-  }
+  // Update UI visibility based on game state
+  update_ui_visibility(n);
 
   // Toggle UI visibility with WidgetMod (start button)
   const bool start_pressed =
@@ -64,12 +100,14 @@ void NavigationSystem::once(float) {
     n.ui_visible = false;
   }
 
-  // Back navigation on escape
+  // Handle escape key for both menu navigation and pause functionality
   const bool escape_pressed =
       std::ranges::any_of(inpc.inputs_pressed(), [](const auto &a) {
-        return action_matches(a.action, InputAction::MenuBack);
+        return action_matches(a.action, InputAction::MenuBack) ||
+               action_matches(a.action, InputAction::PauseButton);
       });
-  if (escape_pressed && n.ui_visible) {
-    navigation::back();
+
+  if (escape_pressed) {
+    handle_escape_key(n);
   }
 }
