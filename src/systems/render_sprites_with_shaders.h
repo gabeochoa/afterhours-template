@@ -192,10 +192,10 @@ private:
   }
 
   void update_per_entity_uniforms(const raylib::Shader &shader,
-                                  const HasShader &hasShader,
+                                  const HasShader & /*hasShader*/,
                                   const HasColor &hasColor,
-                                  const Transform &transform,
-                                  ShaderType shader_type) const {
+                                  const Transform & /*transform*/,
+                                  ShaderType /*shader_type*/) const {
     // Update entity-specific uniforms
     raylib::Color entityColor = hasColor.color();
     float entityColorF[4] = {

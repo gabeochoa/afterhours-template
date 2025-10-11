@@ -7,8 +7,6 @@
 
 struct BeginPostProcessingShader : System<> {
   virtual void once(float) const override {
-    const bool hasTag =
-        ShaderLibrary::get().contains(ShaderType::post_processing_tag);
     if (!ShaderLibrary::get().contains(ShaderType::post_processing_tag)) {
       return;
     }

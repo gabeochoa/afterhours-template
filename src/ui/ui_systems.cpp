@@ -27,8 +27,12 @@ using namespace afterhours::ui::controls;
 using namespace afterhours::ui::containers;
 using Screen = GameStateManager::Screen;
 
-auto height_at_720p(float value) { return h720(value); }
-auto width_at_720p(float value) { return w1280(value); }
+auto height_at_720p(float value) {
+  return afterhours::ui::metrics::h720(value);
+}
+auto width_at_720p(float value) {
+  return afterhours::ui::metrics::w1280(value);
+}
 
 static constexpr float kColumnWidth = 0.2f;
 static constexpr float kContainerPadding = 0.02f;
