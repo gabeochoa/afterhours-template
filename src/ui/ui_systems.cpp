@@ -11,6 +11,9 @@
 #include "../query.h"
 #include "../settings.h"
 #include "../translation_manager.h"
+#include "containers.h"
+#include "controls.h"
+#include "metrics.h"
 #include "navigation.h"
 
 using namespace afterhours;
@@ -19,10 +22,17 @@ struct MapConfig;
 
 using namespace afterhours::ui;
 using namespace afterhours::ui::imm;
+using namespace afterhours::ui::metrics;
+using namespace afterhours::ui::controls;
+using namespace afterhours::ui::containers;
 using Screen = GameStateManager::Screen;
 
-auto height_at_720p(float value) { return screen_pct(value / 720.f); }
-auto width_at_720p(float value) { return screen_pct(value / 1280.f); }
+auto height_at_720p(float value) { return h720(value); }
+auto width_at_720p(float value) { return w1280(value); }
+
+static constexpr float kColumnWidth = 0.2f;
+static constexpr float kContainerPadding = 0.02f;
+static constexpr float kPadding720 = 5.f / 720.f;
 
 struct SetupGameStylingDefaults
     : System<afterhours::ui::UIContext<InputAction>> {
@@ -66,6 +76,10 @@ struct SetupGameStylingDefaults
         ComponentConfig{}
             .with_size(ComponentSize{screen_pct(200.f / 1280.f),
                                      screen_pct(50.f / 720.f)})
+            .with_padding(Padding{.top = screen_pct(kPadding720),
+                                  .left = pixels(0.f),
+                                  .bottom = screen_pct(kPadding720),
+                                  .right = pixels(0.f)})
             .with_color_usage(Theme::Usage::Secondary));
 
     styling_defaults.set_component_config(
@@ -73,35 +87,34 @@ struct SetupGameStylingDefaults
         ComponentConfig{}
             .with_size(ComponentSize{screen_pct(200.f / 1280.f),
                                      screen_pct(50.f / 720.f)})
+            .with_padding(Padding{.top = screen_pct(kPadding720),
+                                  .left = pixels(0.f),
+                                  .bottom = screen_pct(kPadding720),
+                                  .right = pixels(0.f)})
             .with_color_usage(Theme::Usage::Primary));
   }
 };
 
 struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
-  input::PossibleInputCollector inpc;
 
   virtual bool should_run(float) override {
-    inpc = input::get_input_collector();
     return GameStateManager::get().is_menu_active();
   }
 
   virtual void for_each_with(Entity &entity, UIContext<InputAction> &context,
                              float) override {
-    GameStateManager::get().update_screen();
+    auto &gsm = GameStateManager::get();
+    gsm.update_screen();
 
-    switch (GameStateManager::get().active_screen) {
-    case Screen::Main:
-      GameStateManager::get().active_screen = main_screen(entity, context);
-      break;
-    case Screen::Settings:
-      GameStateManager::get().active_screen = settings_screen(entity, context);
-      break;
-    case Screen::None:
-    default:
-      GameStateManager::get().active_screen =
-          GameStateManager::get().active_screen;
-      break;
+    if (gsm.active_screen == Screen::Main) {
+      gsm.active_screen = main_screen(entity, context);
+      return;
     }
+    if (gsm.active_screen == Screen::Settings) {
+      gsm.active_screen = settings_screen(entity, context);
+      return;
+    }
+    gsm.active_screen = gsm.active_screen;
   }
 
   Screen main_screen(Entity &entity, UIContext<InputAction> &context);
@@ -120,13 +133,7 @@ ElementResult create_styled_button(UIContext<InputAction> &context,
                                    int index = 0) {
 
   if (imm::button(context, mk(parent, index),
-                  ComponentConfig{}
-                      .with_debug_name(label)
-                      .with_padding(Padding{.top = pixels(5.f),
-                                            .left = pixels(0.f),
-                                            .bottom = pixels(5.f),
-                                            .right = pixels(0.f)})
-                      .with_label(label))) {
+                  ComponentConfig{}.with_debug_name(label).with_label(label))) {
     on_click();
     return {true, parent};
   }
@@ -142,11 +149,7 @@ ElementResult create_volume_slider(UIContext<InputAction> &context,
                                    int index = 0) {
 
   if (auto result = slider(context, mk(parent, index), volume,
-                           ComponentConfig{}.with_label(label).with_padding(
-                               Padding{.top = pixels(5.f),
-                                       .left = pixels(0.f),
-                                       .bottom = pixels(5.f),
-                                       .right = pixels(0.f)}),
+                           ComponentConfig{}.with_label(label),
                            SliderHandleValueLabelPosition::OnHandle)) {
     volume = result.as<float>();
     on_change(volume);
@@ -170,32 +173,17 @@ ElementResult create_screen_container(UIContext<InputAction> &context,
 }
 
 // Reusable control group component
-ElementResult create_control_group(UIContext<InputAction> &context,
-                                   Entity &parent,
-                                   const std::string &debug_name) {
-
-  return imm::div(
-      context, mk(parent),
-      ComponentConfig{}
-          .with_size(ComponentSize{screen_pct(0.2f), screen_pct(1.f)})
-          .with_padding(
-              Padding{.top = screen_pct(0.02f), .left = screen_pct(0.02f)})
-          .with_flex_direction(FlexDirection::Column)
-          .with_debug_name(debug_name));
-}
-
-// Reusable top-left container component
-ElementResult create_top_left_container(UIContext<InputAction> &context,
-                                        Entity &parent,
-                                        const std::string &debug_name,
-                                        int index = 0) {
+ElementResult create_column_container(UIContext<InputAction> &context,
+                                      Entity &parent,
+                                      const std::string &debug_name,
+                                      int index = 0) {
 
   return imm::div(
       context, mk(parent, index),
       ComponentConfig{}
-          .with_size(ComponentSize{screen_pct(0.2f), screen_pct(1.f)})
-          .with_padding(
-              Padding{.top = screen_pct(0.02f), .left = screen_pct(0.02f)})
+          .with_size(ComponentSize{screen_pct(kColumnWidth), screen_pct(1.f)})
+          .with_padding(Padding{.top = screen_pct(kContainerPadding),
+                                .left = screen_pct(kContainerPadding)})
           .with_flex_direction(FlexDirection::Column)
           .with_debug_name(debug_name));
 }
@@ -216,21 +204,21 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
                    .with_debug_name("main_background")
                    .with_rounded_corners(RoundedCorners().all_sharp()));
 
-  auto top_left = ui_helpers::create_top_left_container(context, bg.ent(),
-                                                        "main_top_left", 0);
+  auto top_left =
+      column_left<InputAction>(context, bg.ent(), "main_top_left", 0);
 
   // Play button
-  ui_helpers::create_styled_button(
+  button_labeled<InputAction>(
       context, top_left.ent(), "Play",
       []() { GameStateManager::get().start_game(); }, 0);
 
   // Settings button
-  ui_helpers::create_styled_button(
+  button_labeled<InputAction>(
       context, top_left.ent(), "Settings",
       []() { navigation::to(GameStateManager::Screen::Settings); }, 1);
 
   // Exit button
-  ui_helpers::create_styled_button(
+  button_labeled<InputAction>(
       context, top_left.ent(), "Quit", [this]() { exit_game(); }, 2);
 
   return GameStateManager::get().next_screen.value_or(
@@ -241,10 +229,10 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
                                            UIContext<InputAction> &context) {
   auto elem =
       ui_helpers::create_screen_container(context, entity, "settings_screen");
-  auto top_left = ui_helpers::create_top_left_container(context, elem.ent(),
-                                                        "settings_top_left", 0);
+  auto top_left =
+      column_left<InputAction>(context, elem.ent(), "settings_top_left", 0);
   {
-    ui_helpers::create_styled_button(
+    button_labeled<InputAction>(
         context, top_left.ent(), "Back",
         []() {
           Settings::get().update_resolution(
@@ -259,7 +247,7 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
   // Master volume slider
   {
     float master_volume = Settings::get().get_master_volume();
-    ui_helpers::create_volume_slider(
+    slider_labeled<InputAction>(
         context, top_left.ent(), "Master Volume", master_volume,
         [](float volume) { Settings::get().update_master_volume(volume); }, 1);
   }
@@ -267,7 +255,7 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
   // Music volume slider
   {
     float music_volume = Settings::get().get_music_volume();
-    ui_helpers::create_volume_slider(
+    slider_labeled<InputAction>(
         context, top_left.ent(), "Music Volume", music_volume,
         [](float volume) { Settings::get().update_music_volume(volume); }, 2);
   }
@@ -275,32 +263,22 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
   // SFX volume slider
   {
     float sfx_volume = Settings::get().get_sfx_volume();
-    ui_helpers::create_volume_slider(
+    slider_labeled<InputAction>(
         context, top_left.ent(), "SFX Volume", sfx_volume,
         [](float volume) { Settings::get().update_sfx_volume(volume); }, 3);
   }
 
   // Fullscreen checkbox
-  if (imm::checkbox(context, mk(top_left.ent(), 4),
-                    Settings::get().get_fullscreen_enabled(),
-                    ComponentConfig{}
-                        .with_label("Fullscreen")
-                        .with_padding(Padding{.top = pixels(5.f),
-                                              .left = pixels(0.f),
-                                              .bottom = pixels(5.f),
-                                              .right = pixels(0.f)}))) {
+  if (checkbox_labeled<InputAction>(context, top_left.ent(), "Fullscreen",
+                                    Settings::get().get_fullscreen_enabled(),
+                                    4)) {
     Settings::get().toggle_fullscreen();
   }
 
   // Post Processing checkbox
-  if (imm::checkbox(context, mk(top_left.ent(), 5),
-                    Settings::get().get_post_processing_enabled(),
-                    ComponentConfig{}
-                        .with_label("Post Processing")
-                        .with_padding(Padding{.top = pixels(5.f),
-                                              .left = pixels(0.f),
-                                              .bottom = pixels(5.f),
-                                              .right = pixels(0.f)}))) {
+  if (checkbox_labeled<InputAction>(
+          context, top_left.ent(), "Post Processing",
+          Settings::get().get_post_processing_enabled(), 5)) {
     Settings::get().toggle_post_processing();
   }
 

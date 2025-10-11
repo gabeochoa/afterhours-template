@@ -45,7 +45,7 @@ static void load_gamepad_mappings() {
   std::ifstream ifs(
       Files::get().fetch_resource_path("", "gamecontrollerdb.txt").c_str());
   if (!ifs.is_open()) {
-    std::cout << "Failed to load game controller db" << std::endl;
+    log_warn("failed to load game controller db");
     return;
   }
   std::stringstream buffer;
@@ -85,19 +85,14 @@ Preload &Preload::init(const char *title) {
 
   // TODO add load folder for shaders
 
-  ShaderLibrary::get().load(
-      Files::get().fetch_resource_path("shaders", "post_processing.fs").c_str(),
-      "post_processing");
-
-  ShaderLibrary::get().load(
-      Files::get()
-          .fetch_resource_path("shaders", "post_processing_tag.fs")
-          .c_str(),
-      "post_processing_tag");
-
-  ShaderLibrary::get().load(
-      Files::get().fetch_resource_path("shaders", "text_mask.fs").c_str(),
-      "text_mask");
+  auto load_shader = [](const char *file, const char *name) {
+    const char *path =
+        Files::get().fetch_resource_path("shaders", file).c_str();
+    ShaderLibrary::get().load(path, name);
+  };
+  load_shader("post_processing.fs", "post_processing");
+  load_shader("post_processing_tag.fs", "post_processing_tag");
+  load_shader("text_mask.fs", "text_mask");
 
   // TODO how safe is the path combination here esp for mac vs windows
   Files::get().for_resources_in_folder(

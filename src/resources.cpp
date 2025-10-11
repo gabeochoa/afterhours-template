@@ -71,8 +71,8 @@ void Files::for_resources_in_group(
          dir_entry.path().extension().string());
     }
   } catch (const std::exception &e) {
-    std::cout << "Exception while iterating over group resources " << group
-              << " " << e.what() << std::endl;
+    log_warn("exception while iterating over group resources {}: {}", group,
+             e.what());
     return;
   }
 }
@@ -88,7 +88,8 @@ void Files::for_resources_in_folder(
       cb(dir_entry.path().stem().string(), dir_entry.path().string());
     }
   } catch (const std::exception &e) {
-    std::cout << e.what() << std::endl;
+    log_warn("exception while iterating resources in folder {}/{}: {}", group,
+             folder, e.what());
     return;
   }
 }
