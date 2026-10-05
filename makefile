@@ -171,3 +171,6 @@ deps-check: deps
 	@[ -f tools/dependency_baseline.json ] || (echo "No baseline found at tools/dependency_baseline.json" && exit 2)
 	@diff -u tools/dependency_baseline.json output/dependency_summary.json || (echo "Dependency summary changed. Run 'make deps' and update baseline if intentional." && exit 1)
 
+
+check:
+	python3 scripts/check_correct.py src
