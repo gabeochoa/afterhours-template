@@ -44,8 +44,10 @@ struct RenderSpritesWithShaders
         {&transform, &hasSprite, &hasColor, &hasShader});
   }
 
-  virtual void once(float) const override {
-    // Render all batches after collecting all entities
+  // after(), not once(): SystemManager::render calls once() *before* the
+  // entity loop, so rendering there drew the previous frame's batch. The batch
+  // holds raw component pointers, so one destroyed entity makes them dangle.
+  virtual void after(float) const override {
     render_all_batches();
     shader_batches.clear();
     uniforms_updated_this_frame = false;
